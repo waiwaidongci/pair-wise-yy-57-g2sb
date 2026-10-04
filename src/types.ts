@@ -48,4 +48,6 @@ export interface ExecutionRecord {
   snapshot: string
   result: TestStatus
   evidence: string[]
+  /** 幂等键：重复请求取首次 */
+  requestKey?: string
 }

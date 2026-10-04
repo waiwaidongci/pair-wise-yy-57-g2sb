@@ -1,4 +1,5 @@
 import type { ExecutionRecord, StationDevice, TestCase } from './types'
+import type { EquipmentChange, RouteSnapshot } from './reconcile'
 
 export const devices: StationDevice[] = [
   { id:'P-01',name:'1# 道岔',kind:'道岔',x:18,y:58,routeIds:['R-01','R-02'] },
@@ -19,6 +20,23 @@ export const routes = [
   { id:'R-04',name:'2G → 3G → S2',color:'#7c3aed',points:[[42,45],[67,45],[67,58],[67,65],[74,65],[74,78],[88,78]] as [number,number][],devices:['P-03','T-02','T-03','S-02'],affectedBy:['T-03 绝缘节调整'] },
 ]
 
+/** 施工天窗分两次换道岔和轨道区段，另有一项已撤销；均带生效时段 */
+export const equipmentChanges: EquipmentChange[] = [
+  { id:'CHG-1', deviceId:'P-02', description:'P-02 转辙机更换', phase:1, effectiveFrom:'14:30', revoked:false },
+  { id:'CHG-2', deviceId:'T-03', description:'T-03 绝缘节调整', phase:2, effectiveFrom:'15:05', revoked:false },
+  { id:'CHG-3', deviceId:'P-01', description:'P-01 道岔更换（已撤销）', phase:1, effectiveFrom:'13:00', effectiveTo:'13:45', revoked:true },
+]
+
+/** 进路关系按生效时段版本化：T-03 绝缘节调整后 R-02/R-04 才纳入 T-03 区段 */
+export const routeSnapshots: RouteSnapshot[] = [
+  { routeId:'R-01', validFrom:'00:00', devices:['X-01','P-01','P-02','T-01','T-02','S-01'] },
+  { routeId:'R-02', validFrom:'00:00', validTo:'15:05', devices:['X-01','P-01','P-02','P-03','T-01','S-02'] },
+  { routeId:'R-02', validFrom:'15:05', devices:['X-01','P-01','P-02','P-03','T-01','T-03','S-02'] },
+  { routeId:'R-03', validFrom:'00:00', devices:['X-01','P-01','P-02','T-02','S-01'] },
+  { routeId:'R-04', validFrom:'00:00', validTo:'15:05', devices:['P-03','T-02','S-02'] },
+  { routeId:'R-04', validFrom:'15:05', devices:['P-03','T-02','T-03','S-02'] },
+]
+
 export const seedCases: TestCase[] = [
   { id:'TC-101',name:'X 至 S 正线接车进路建立',routeIds:['R-01'],precondition:'1G、2G 空闲，道岔在定位，无敌对进路',version:'v26.09',status:'通过',steps:[{id:'TS-1',action:'排列 X → S 接车进路',expected:'X 信号开放，P-01/P-02 锁闭',result:'通过',actual:'信号开放，联锁状态一致',evidence:'截图 XS-026'},{id:'TS-2',action:'人工扳动 P-02',expected:'道岔锁闭，操作被拒绝',result:'通过',actual:'拒绝并记录操作',evidence:'日志 LG-108'}] },
   { id:'TC-102',name:'X 至 S2 侧线接车与3G占用',routeIds:['R-02'],precondition:'3G 空闲，P-03 反位',version:'v26.09',status:'执行中',steps:[{id:'TS-3',action:'排列 X → S2 侧线进路',expected:'X、S2 信号开放，P-03 锁闭反位',result:'通过',actual:'进路建立正常',evidence:'截图 XS-031'},{id:'TS-4',action:'模拟 3G 轨道区段占用',expected:'立即关闭 S2 信号，保持进路锁闭',result:'未执行'}] },
@@ -27,7 +45,9 @@ export const seedCases: TestCase[] = [
 ]
 
 export const seedExecutions: ExecutionRecord[] = [
-  { id:'EX-260929-04',caseId:'TC-103',operator:'陆晨',startedAt:'16:10',finishedAt:'16:38',snapshot:'v26.09 / CS-LEU-08',result:'失败',evidence:['VID-014','LG-119'] },
-  { id:'EX-260929-03',caseId:'TC-101',operator:'陆晨',startedAt:'15:20',finishedAt:'15:44',snapshot:'v26.09 / CS-LEU-08',result:'通过',evidence:['XS-026','LG-108'] },
-  { id:'EX-260929-02',caseId:'TC-102',operator:'方瑜',startedAt:'14:52',snapshot:'v26.09 / CS-LEU-08',result:'执行中',evidence:['XS-031'] },
+  { id:'EX-260929-04',caseId:'TC-103',operator:'陆晨',startedAt:'16:10',finishedAt:'16:38',snapshot:'v26.09 / CS-LEU-08',result:'失败',evidence:['VID-014','LG-119'],requestKey:'req-tc103-1610' },
+  { id:'EX-260929-03',caseId:'TC-101',operator:'陆晨',startedAt:'15:20',finishedAt:'15:44',snapshot:'v26.09 / CS-LEU-08',result:'通过',evidence:['XS-026','LG-108'],requestKey:'req-tc101-1520' },
+  { id:'EX-260929-02',caseId:'TC-102',operator:'方瑜',startedAt:'14:52',snapshot:'v26.09 / CS-LEU-08',result:'执行中',evidence:['XS-031'],requestKey:'req-tc102-1452' },
+  // 重复请求：与 EX-260929-03 同幂等键，对账取首次（15:20 那条）
+  { id:'EX-260929-05',caseId:'TC-101',operator:'陆晨',startedAt:'15:25',snapshot:'v26.09 / CS-LEU-08',result:'通过',evidence:['XS-026'],requestKey:'req-tc101-1520' },
 ]
