@@ -10,6 +10,7 @@ const nav = [
   { name:'station', label:'站场与进路' },
   { name:'cases', label:'测试用例' },
   { name:'execution', label:'执行记录' },
+  { name:'reconcile', label:'生效时段对账' },
   { name:'release', label:'基线与报告' },
 ]
 </script>
